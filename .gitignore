@@ -1,0 +1,50 @@
+--- System Files ---
+
+.DS_Store
+Thumbs.db
+*.log
+
+--- Dependencies ---
+
+This ignores node_modules in the root, /backend, /frontend, etc.
+
+**/node_modules/
+
+--- Environment & Security ---
+
+Protects your API keys and DB passwords
+
+.env
+.env.local
+.env.development.local
+**/.env
+
+--- Backend & Database ---
+
+backend/uploads/.pdf
+backend/uploads/.txt
+backend/uploads/*.png
+*.db
+*.sqlite
+
+--- Frontend Build Artifacts ---
+
+frontend/dist/
+frontend/build/
+frontend/.next/
+
+--- Blockchain (Hardhat/Foundry) ---
+
+artifacts/
+cache/
+typechain/
+typechain-types/
+blockchain/artifacts/
+blockchain/cache/
+coverage/
+coverage.json
+
+--- Editor Folders ---
+
+.vscode/
+.idea/

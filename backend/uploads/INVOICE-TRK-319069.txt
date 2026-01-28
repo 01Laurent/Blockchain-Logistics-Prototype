@@ -1,0 +1,13 @@
+INVOICE - EASTERN PRODUCE KENYA
+ID: INV-1769594408554
+Tracking: TRK-319069
+ITEMS:
+- BP1 (Broken Pekoe 1) | Qty: 4 | Weight: 500
+- PF1 (Pekoe Fannings 1) | Qty: 4 | Weight: 500
+- PD (Pekoe Dust) | Qty: 4 | Weight: 500
+- D1 (Dust 1) | Qty: 4 | Weight: 500
+- Green Tea Extract | Qty: 4 | Weight: 500
+- Purple Tea (Specialty) | Qty: 4 | Weight: 500
+
+TOTAL VALUE: $15000.00
+LOCKED BY ADMIN ON ETHEREUM BLOCKCHAIN
