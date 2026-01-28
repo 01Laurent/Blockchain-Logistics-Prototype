@@ -26,6 +26,8 @@ backend/uploads/.txt
 backend/uploads/*.png
 *.db
 *.sqlite
+backend/uploads/*
+!backend/uploads/.gitkeep
 
 --- Frontend Build Artifacts ---
 
