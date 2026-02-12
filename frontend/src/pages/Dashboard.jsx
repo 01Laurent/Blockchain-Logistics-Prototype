@@ -7,11 +7,14 @@ import LogisticsView from '../components/LogisticsView';
 import WarehouseView from '../components/WarehouseView';
 import AdminView from '../components/AdminView';
 import AccountsView from '../components/AccountsView';
+import AdminAnalytics from '../components/AdminAnalytics';
 
 const API_URL = 'http://192.168.1.67:3000/api';
 
 export default function Dashboard({ user, logout }) {
     const [shipments, setShipments] = useState([]);
+    const [showAnalytics, setShowAnalytics] = useState(false);
+
     
     // --- ADMIN SPECIFIC STATES ---
     const [logs, setLogs] = useState([]);
@@ -97,42 +100,70 @@ export default function Dashboard({ user, logout }) {
                 {/* --- SALES PANEL --- */}
                 {user.role === 'Sales' && <SalesView user={user} refreshData={fetchShipments} />}
 
-                {/* --- SHIPMENTS TABLE --- */}
-                <h3 className="text-xl font-bold text-slate-800 mb-4">Active Shipments</h3>
-                <div className="bg-white shadow-lg rounded-xl overflow-hidden border border-slate-200">
-                    <table className="min-w-full divide-y divide-slate-200">
-                        <thead className="bg-slate-50">
-                            <tr>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase">Tracking</th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase">Details</th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase">Status</th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200">
-                            {shipments.map((ship) => (
-                                <tr key={ship.shipment_id} className="hover:bg-slate-50 transition">
-                                    <td className="px-6 py-4 font-bold text-slate-900">{ship.tracking_number}</td>
-                                    <td className="px-6 py-4 text-sm font-medium text-slate-700">{ship.origin} ➝ {ship.destination}</td>
-                                    <td className="px-6 py-4">
-                                        <span className={`px-2 py-1 text-xs font-bold rounded-full border ${ship.invoice_status === 'Approved' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-yellow-100 text-yellow-800 border-yellow-200'}`}>
-                                            Inv: {ship.invoice_status || 'Pending'}
-                                        </span>
-                                        <span className="ml-2 px-2 py-1 text-xs font-bold rounded-full bg-blue-100 text-blue-800 border border-blue-200">{ship.status}</span>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm font-medium">
-                                        {/* DYNAMIC COMPONENT RENDERING */}
-                                        {user.role === 'Sales' && <img src={`https://api.qrserver.com/v1/create-qr-code/?size=50x50&data=${ship.tracking_number}`} alt="QR" className="h-8 w-8" />}
-                                        {user.role === 'Logistics' && <LogisticsView shipment={ship} user={user} refreshData={fetchShipments} />}
-                                        {user.role === 'Warehouse' && <WarehouseView shipment={ship} user={user} refreshData={fetchShipments} />}
-                                        {user.role === 'Admin' && <AdminView shipment={ship} user={user} refreshData={fetchShipments} />}
-                                        {user.role === 'Accounts' && <AccountsView shipment={ship} />}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                {/* --- ANALYTICS TOGGLE (Admin Only) --- */}
+                {user.role === 'Admin' && (
+                    <div className="mb-6">
+                        <button 
+                            onClick={() => setShowAnalytics(!showAnalytics)}
+                            className="bg-slate-900 text-white px-6 py-3 rounded-xl hover:bg-slate-800 border border-slate-700 transition-all duration-300 font-bold shadow-lg hover:shadow-xl flex items-center gap-2"
+                        >
+                            {showAnalytics ? (
+                                <>
+                                    <span className="text-xl">📋</span> 
+                                    <span>View Shipments</span>
+                                </>
+                            ) : (
+                                <>
+                                    <span className="text-xl">📊</span> 
+                                    <span>View Analytics</span>
+                                </>
+                            )}
+                        </button>
+                    </div>
+                )}
+
+                {/* --- CONDITIONAL RENDERING: Analytics OR Shipments Table --- */}
+                {user.role === 'Admin' && showAnalytics ? (
+                    <AdminAnalytics />
+                ) : (
+                    <>
+                        <h3 className="text-xl font-bold text-slate-800 mb-4">Active Shipments</h3>
+                        <div className="bg-white shadow-lg rounded-xl overflow-hidden border border-slate-200">
+                            <table className="min-w-full divide-y divide-slate-200">
+                                <thead className="bg-slate-50">
+                                    <tr>
+                                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase">Tracking</th>
+                                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase">Details</th>
+                                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase">Status</th>
+                                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-200">
+                                    {shipments.map((ship) => (
+                                        <tr key={ship.shipment_id} className="hover:bg-slate-50 transition">
+                                            <td className="px-6 py-4 font-bold text-slate-900">{ship.tracking_number}</td>
+                                            <td className="px-6 py-4 text-sm font-medium text-slate-700">{ship.origin} ➝ {ship.destination}</td>
+                                            <td className="px-6 py-4">
+                                                <span className={`px-2 py-1 text-xs font-bold rounded-full border ${ship.invoice_status === 'Approved' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-yellow-100 text-yellow-800 border-yellow-200'}`}>
+                                                    Inv: {ship.invoice_status || 'Pending'}
+                                                </span>
+                                                <span className="ml-2 px-2 py-1 text-xs font-bold rounded-full bg-blue-100 text-blue-800 border border-blue-200">{ship.status}</span>
+                                            </td>
+                                            <td className="px-6 py-4 text-sm font-medium">
+                                                {/* DYNAMIC COMPONENT RENDERING */}
+                                                {user.role === 'Sales' && <img src={`https://api.qrserver.com/v1/create-qr-code/?size=50x50&data=${ship.tracking_number}`} alt="QR" className="h-8 w-8" />}
+                                                {user.role === 'Logistics' && <LogisticsView shipment={ship} user={user} refreshData={fetchShipments} />}
+                                                {user.role === 'Warehouse' && <WarehouseView shipment={ship} user={user} refreshData={fetchShipments} />}
+                                                {user.role === 'Admin' && <AdminView shipment={ship} user={user} refreshData={fetchShipments} />}
+                                                {user.role === 'Accounts' && <AccountsView shipment={ship} />}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </>
+                )}
             </main>
         </div>
     );

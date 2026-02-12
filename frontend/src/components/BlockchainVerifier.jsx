@@ -9,6 +9,39 @@ const BlockchainVerifier = ({ initialTrackingId = '' }) => {
     const [verificationData, setVerificationData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [hashVerification, setHashVerification] = useState(null); // null | 'verifying' | 'match' | 'tampered'
+
+    // ✅ NEW: Function to hash the PDF file in the browser
+    const verifyPdfHash = async (filePath, blockchainHash) => {
+        if (!blockchainHash || blockchainHash === '0x' || !filePath) {
+            setHashVerification(null);
+            return;
+        }
+
+        setHashVerification('verifying');
+
+        try {
+            // Fetch the PDF file
+            const response = await fetch(`http://192.168.1.67:3000/uploads/${filePath}`);
+            const blob = await response.blob();
+            const arrayBuffer = await blob.arrayBuffer();
+
+            // Compute SHA-256 hash
+            const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashHex = '0x' + hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+            // Compare hashes
+            if (hashHex.toLowerCase() === blockchainHash.toLowerCase()) {
+                setHashVerification('match');
+            } else {
+                setHashVerification('tampered');
+            }
+        } catch (err) {
+            console.error("Hash verification error:", err);
+            setHashVerification(null);
+        }
+    };
 
     const handleVerify = async (e) => {
         if (e) e.preventDefault();
@@ -17,11 +50,10 @@ const BlockchainVerifier = ({ initialTrackingId = '' }) => {
         setLoading(true);
         setError('');
         setVerificationData(null);
+        setHashVerification(null);
 
         try {
-            // 1. Get Shipment ID from Tracking Number (We need to search for it)
-            // In a real app, you'd have a specific endpoint like /api/shipments/track/:id
-            // For this prototype, we'll fetch all and find it (simple but works)
+            // 1. Get Shipment ID from Tracking Number
             const res = await axios.get(`${API_URL}/shipments`);
             const shipment = res.data.find(s => s.tracking_number === trackingId);
 
@@ -32,10 +64,17 @@ const BlockchainVerifier = ({ initialTrackingId = '' }) => {
             // 2. Get Blockchain Status
             const statusRes = await axios.get(`${API_URL}/shipments/${shipment.shipment_id}/status`);
             
-            setVerificationData({
+            const data = {
                 local: shipment,
                 chain: statusRes.data
-            });
+            };
+
+            setVerificationData(data);
+
+            // 3. ✅ NEW: Verify the PDF hash if it exists
+            if (shipment.file_path && statusRes.data.blockchainHash) {
+                await verifyPdfHash(shipment.file_path, statusRes.data.blockchainHash);
+            }
 
         } catch (err) {
             console.error(err);
@@ -45,12 +84,9 @@ const BlockchainVerifier = ({ initialTrackingId = '' }) => {
         }
     };
 
-    // If initialTrackingId changes (e.g. parent passed a new one), update state
     React.useEffect(() => {
         if (initialTrackingId) {
             setTrackingId(initialTrackingId);
-            // Optional: Auto-verify if passed? Uncomment below line if desired
-            // handleVerify();
         }
     }, [initialTrackingId]);
 
@@ -61,7 +97,7 @@ const BlockchainVerifier = ({ initialTrackingId = '' }) => {
                 Blockchain Verifier
             </h3>
 
-            {/* Search Input (Only show if not verifying a specific item) */}
+            {/* Search Input */}
             <div className="flex gap-2 mb-6">
                 <input 
                     type="text" 
@@ -111,13 +147,56 @@ const BlockchainVerifier = ({ initialTrackingId = '' }) => {
                                 )}
                             </div>
                         </div>
-                        {/* QR Code Placeholder */}
+                        {/* QR Code */}
                         <div className="hidden sm:block">
                             {trackingId && (
                                 <img src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(trackingId)}`} alt="QR" className="border-4 border-white shadow-sm" />
                             )}
                         </div>
                     </div>
+
+                    {/* ✅ NEW: Hash Verification Indicator */}
+                    {hashVerification && (
+                        <div className={`p-4 rounded-lg border-2 ${
+                            hashVerification === 'verifying' ? 'bg-blue-50 border-blue-300' :
+                            hashVerification === 'match' ? 'bg-emerald-50 border-emerald-300' :
+                            'bg-red-50 border-red-300'
+                        }`}>
+                            <div className="flex items-center">
+                                {hashVerification === 'verifying' && (
+                                    <>
+                                        <svg className="animate-spin h-5 w-5 mr-2 text-blue-600" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        <span className="font-bold text-blue-700">Verifying Document Integrity...</span>
+                                    </>
+                                )}
+                                {hashVerification === 'match' && (
+                                    <>
+                                        <svg className="h-6 w-6 mr-2 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <div>
+                                            <p className="font-bold text-emerald-700">✓ DOCUMENT VERIFIED</p>
+                                            <p className="text-xs text-emerald-600 mt-1">Hash matches blockchain record. Document has NOT been altered.</p>
+                                        </div>
+                                    </>
+                                )}
+                                {hashVerification === 'tampered' && (
+                                    <>
+                                        <svg className="h-6 w-6 mr-2 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                        </svg>
+                                        <div>
+                                            <p className="font-bold text-red-700">⚠ TAMPERED DOCUMENT</p>
+                                            <p className="text-xs text-red-600 mt-1">Hash does NOT match blockchain. Document may have been altered!</p>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Chain Details */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -147,6 +226,23 @@ const BlockchainVerifier = ({ initialTrackingId = '' }) => {
                             <p className="text-[10px] text-slate-400 mt-1 text-right">SHA-256 / KECCAK-256</p>
                         </div>
                     </div>
+
+                    {/* ✅ NEW: Download PDF Button (if available) */}
+                    {verificationData.local.file_path && (
+                        <div className="text-center">
+                            <a 
+                                href={`http://192.168.1.67:3000/uploads/${verificationData.local.file_path}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition"
+                            >
+                                <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                Download Invoice PDF
+                            </a>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

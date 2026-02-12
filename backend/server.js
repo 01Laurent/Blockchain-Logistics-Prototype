@@ -40,55 +40,96 @@ async function logAction(userId, action, details) {
     } catch (err) { console.error("Audit Error:", err); }
 }
 
-// --- HELPER: PDF GENERATOR ---
+// --- PDF GENERATOR ---
 function generateInvoicePDF(shipment, packingList, filePath, isDraft = true) {
     return new Promise((resolve, reject) => {
-        const doc = new PDFDocument({ margin: 40, size: 'A4' });
+        const doc = new PDFDocument({ margin: 50, size: 'A4' });
         const writeStream = fs.createWriteStream(filePath);
         doc.pipe(writeStream);
 
         const colors = {
-            primary: '#0f172a',
-            accent: '#10b981',
-            border: '#e2e8f0',
-            text: '#334155'
+            primary: '#DC2626',      // Red
+            secondary: '#F5F5DC',    // Beige/Cream
+            dark: '#1a1a1a',         // Dark text
+            gray: '#666666'          // Gray text
         };
 
-        doc.rect(0, 0, 595, 125).fill(colors.primary);
-        doc.save().translate(50, 35);
-        doc.path('M20 0 L40 10 L40 30 L20 40 L0 30 L0 10 Z').fill(colors.accent);
-        doc.fillColor('white').fontSize(12).font('Helvetica-Bold').text('EP', 11, 14);
-        doc.restore();
+        const invoiceDate = new Date();
+        const dueDate = new Date(invoiceDate);
+        dueDate.setDate(dueDate.getDate() + 30);
 
-        doc.fillColor('white').font('Helvetica-Bold').fontSize(22).text('EASTERN PRODUCE', 110, 42);
-        doc.font('Helvetica').fontSize(9).text('TEA EXPORTERS & LOGISTICS SPECIALISTS', 110, 70);
-        doc.text('Riverside Square, Nairobi, Kenya | trade@easternproduce.com', 110, 82);
-        doc.fontSize(26).text('INVOICE', 400, 42, { align: 'right' });
-        doc.fontSize(10).font('Helvetica').text(`REF: ${shipment.tracking_number}`, 400, 72, { align: 'right' });
-        doc.text(`DATE: ${new Date().toLocaleDateString('en-GB')}`, 400, 85, { align: 'right' });
+        // --- HEADER SECTION ---
+        // Left side - INVOICE in large red text
+        doc.fontSize(42).fillColor(colors.primary).font('Helvetica-Bold').text('INVOICE', 50, 50);
+        
+        // Right side - Company info (aligned right)
+        doc.fontSize(16).fillColor(colors.primary).font('Helvetica-Bold');
+        doc.text('EASTERN PRODUCE', 350, 50, { align: 'right', width: 195 });
+        
+        doc.fontSize(9).fillColor(colors.dark).font('Helvetica');
+        doc.text('TEA EXPORTERS', 350, 70, { align: 'right', width: 195 });
+        doc.text('& LOGISTICS', 350, 82, { align: 'right', width: 195 });
+        
+        doc.fontSize(8).fillColor(colors.gray);
+        doc.text('New Rehema House.,', 350, 105, { align: 'right', width: 195 });
+        doc.text('Lantana Rd, Nairobi', 350, 116, { align: 'right', width: 195 });
+        doc.text('+254-722-205342', 350, 127, { align: 'right', width: 195 });
 
-        const startY = 150;
-        doc.fillColor(colors.primary).font('Helvetica-Bold').fontSize(10).text('EXPORTER / SENDER:', 50, startY);
-        doc.font('Helvetica').text(shipment.sender_name, 50, startY + 15).text(shipment.origin, 50, startY + 28);
-        doc.font('Helvetica-Bold').text('CONSIGNEE / RECEIVER:', 320, startY);
-        doc.font('Helvetica').text(shipment.receiver_name, 320, startY + 15).text(shipment.destination, 320, startY + 28);
+        // --- INVOICE DETAILS ---
+        const detailsY = 160;
+        doc.fontSize(9).fillColor(colors.dark).font('Helvetica');
+        doc.text('INVOICE NUMBER:', 50, detailsY);
+        doc.text(`#${shipment.tracking_number}`, 150, detailsY);
+        
+        doc.text('DATE:', 50, detailsY + 15);
+        doc.text(invoiceDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }), 150, detailsY + 15);
+        
+        doc.text('DUE DATE:', 50, detailsY + 30);
+        doc.text(dueDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }), 150, detailsY + 30);
 
-        const tableTop = 230;
-        const col = { id: 50, grade: 80, qty: 280, weight: 340, uprice: 410, total: 485 };
+        // --- BILL TO & PAYMENT METHOD ---
+        const billingY = 240;
+        
+        // Bill To (Left)
+        doc.fontSize(10).fillColor(colors.dark).font('Helvetica-Bold');
+        doc.text('Bill To:', 50, billingY);
+        
+        doc.fontSize(9).font('Helvetica').fillColor(colors.dark);
+        doc.text(shipment.receiver_name || 'CLIENT NAME', 50, billingY + 20);
+        doc.text(shipment.destination || 'Address', 50, billingY + 35);
 
-        doc.rect(40, tableTop, 515, 25).fill(colors.primary);
-        doc.fillColor('white').font('Helvetica-Bold').fontSize(9);
-        doc.text('#', col.id, tableTop + 8);
-        doc.text('ITEM GRADE & DESCRIPTION', col.grade, tableTop + 8);
-        doc.text('QTY', col.qty, tableTop + 8);
-        doc.text('WEIGHT', col.weight, tableTop + 8);
-        doc.text('UNIT PRICE', col.uprice, tableTop + 8);
-        doc.text('SUBTOTAL', col.total, tableTop + 8, { align: 'right', width: 60 });
+        // Payment Method (Right)
+        doc.fontSize(10).fillColor(colors.dark).font('Helvetica-Bold');
+        doc.text('Payment Method', 350, billingY, { align: 'right', width: 195 });
+        
+        doc.fontSize(9).font('Helvetica').fillColor(colors.dark);
+        doc.text('Bank Transfer', 350, billingY + 20, { align: 'right', width: 195 });
+        doc.text('SWIFT: EASTKE', 350, billingY + 35, { align: 'right', width: 195 });
+        doc.text('+123-456-7890', 350, billingY + 50, { align: 'right', width: 195 });
+
+        // --- TABLE ---
+        const tableTop = 350;
+        const descCol = 50;
+        const qtyCol = 320;
+        const priceCol = 400;
+        const subtotalCol = 480;
+
+        // Table header background (cream color)
+        doc.rect(50, tableTop, 495, 25).fillAndStroke(colors.secondary, colors.gray);
+        
+        // Table headers
+        doc.fontSize(9).fillColor(colors.dark).font('Helvetica-Bold');
+        doc.text('DESCRIPTION', descCol + 5, tableTop + 8);
+        doc.text('QTY', qtyCol, tableTop + 8);
+        doc.text('PRICE', priceCol, tableTop + 8);
+        doc.text('SUBTOTAL', subtotalCol, tableTop + 8);
 
         let currentY = tableTop + 25;
         let grandTotal = 0;
 
+        // Table rows
         packingList.forEach((item, i) => {
+            // Pricing logic
             let price = 5.50;
             const g = (item.grade || "").toLowerCase();
             if (g.includes('purple')) price = 14.20;
@@ -100,33 +141,93 @@ function generateInvoicePDF(shipment, packingList, filePath, isDraft = true) {
             const lineTotal = weightVal * price;
             grandTotal += lineTotal;
 
-            if (i % 2 === 0) doc.rect(40, currentY, 515, 22).fill('#f8fafc');
+            // Row background (alternating)
+            if (i % 2 === 1) {
+                doc.rect(50, currentY, 495, 22).fillAndStroke('#fafafa', '#e5e5e5');
+            } else {
+                doc.rect(50, currentY, 495, 22).stroke('#e5e5e5');
+            }
 
-            doc.fillColor(colors.text).font('Helvetica');
-            doc.text(i + 1, col.id, currentY + 7);
-            doc.text(item.grade, col.grade, currentY + 7);
-            doc.text(item.qty, col.qty, currentY + 7);
-            doc.text(`${weightVal} KG`, col.weight, currentY + 7);
-            doc.text(`$${price.toFixed(2)}`, col.uprice, currentY + 7);
-            doc.text(`$${lineTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}`, col.total, currentY + 7, { align: 'right', width: 60 });
+            doc.fontSize(9).fillColor(colors.dark).font('Helvetica');
+            doc.text(item.grade, descCol + 5, currentY + 7, { width: 260 });
+            doc.text(item.qty, qtyCol, currentY + 7);
+            doc.text(`$${price.toFixed(2)}`, priceCol, currentY + 7);
+            doc.text(`$${lineTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}`, subtotalCol, currentY + 7);
 
             currentY += 22;
         });
 
-        currentY += 20;
-        doc.moveTo(350, currentY).lineTo(555, currentY).strokeColor(colors.border).stroke();
-        currentY += 10;
-        doc.font('Helvetica-Bold').fontSize(10).text('GRAND TOTAL (USD):', 360, currentY + 10);
-        doc.fontSize(16).fillColor(colors.accent).text(`$${grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}`, 450, currentY + 5, { align: 'right', width: 100 });
-
-        const footerY = 740;
-        if (isDraft) {
-            doc.save().rotate(-45, { origin: [300, 400] }).fontSize(80).fillColor('red').opacity(0.1).text('DRAFT ONLY', 100, 350).restore();
+        // Fill remaining rows if needed (for visual consistency)
+        const minRows = 5;
+        const rowsToAdd = Math.max(0, minRows - packingList.length);
+        for (let i = 0; i < rowsToAdd; i++) {
+            if ((packingList.length + i) % 2 === 1) {
+                doc.rect(50, currentY, 495, 22).fillAndStroke('#fafafa', '#e5e5e5');
+            } else {
+                doc.rect(50, currentY, 495, 22).stroke('#e5e5e5');
+            }
+            currentY += 22;
         }
 
-        doc.opacity(1).fillColor(colors.text).fontSize(8).font('Helvetica-Oblique');
-        doc.text('This document is cryptographically secured via Ethereum Smart Contract.', 40, footerY, { align: 'center' });
-        doc.text(`Blockchain Verify ID: ${crypto.createHash('md5').update(shipment.tracking_number).digest('hex')}`, 40, footerY + 12, { align: 'center' });
+        // --- TOTALS SECTION ---
+        currentY += 15;
+        
+        // Tax (10%)
+        const taxAmount = grandTotal * 0.1;
+        doc.fontSize(9).fillColor(colors.dark).font('Helvetica');
+        doc.text('TAX', 400, currentY);
+        doc.text(`$${taxAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}`, subtotalCol, currentY);
+
+        currentY += 20;
+        
+        // Grand Total
+        const finalTotal = grandTotal + taxAmount;
+        doc.fontSize(10).font('Helvetica-Bold');
+        doc.text('GRAND TOTAL', 400, currentY);
+        doc.text(`$${finalTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}`, subtotalCol, currentY);
+
+        // --- TERMS & CONDITIONS ---
+        const termsY = currentY + 50;
+        
+        doc.fontSize(10).fillColor(colors.dark).font('Helvetica-Bold');
+        doc.text('TERM & CONDITION', 50, termsY);
+
+        doc.fontSize(8).font('Helvetica').fillColor(colors.gray);
+        const terms = `Goods once sold cannot be re-accepted.`;
+        doc.text(terms, 50, termsY + 20, { width: 250, lineGap: 2 });
+
+        // --- CONTACT & SIGNATURE ---
+        doc.fontSize(8).fillColor(colors.gray);
+        doc.text('FOR ANY QUESTIONS, PLEASE', 350, termsY + 20);
+        doc.text('CONTACT:', 350, termsY + 32);
+        doc.fillColor(colors.primary).text('info@easternproduce.com', 350, termsY + 44);
+        doc.fillColor(colors.gray).text('OR CALL US AT', 350, termsY + 56);
+        doc.fillColor(colors.primary).text('+123-456-7890', 350, termsY + 68);
+
+        // Signature line
+        doc.fontSize(8).fillColor(colors.dark).font('Helvetica-Bold');
+        doc.text('OLIVIA WILSON', 350, termsY + 100);
+        doc.fontSize(7).font('Helvetica').fillColor(colors.gray);
+        doc.text('OPERATIONS MANAGER', 350, termsY + 112);
+        
+        // Signature image placeholder (draw a line)
+        doc.moveTo(350, termsY + 95).lineTo(480, termsY + 95).stroke(colors.dark);
+
+        // Draft watermark
+        if (isDraft) {
+            doc.save()
+                .rotate(-45, { origin: [300, 400] })
+                .fontSize(80)
+                .fillColor('red')
+                .opacity(0.1)
+                .text('DRAFT ONLY', 100, 350)
+                .restore();
+        }
+
+        // Blockchain footer
+        doc.opacity(1).fontSize(7).fillColor(colors.gray).font('Helvetica-Oblique');
+        doc.text('This document is cryptographically secured via Ethereum Smart Contract.', 50, 750, { align: 'center' });
+        doc.text(`Blockchain Verify ID: ${crypto.createHash('md5').update(shipment.tracking_number).digest('hex')}`, 50, 760, { align: 'center' });
 
         doc.end();
         writeStream.on('finish', resolve);
@@ -298,6 +399,95 @@ app.post('/api/admin/users', async (req, res) => {
         if (adminId) await logAction(adminId, "CREATE_USER", `Created user ${username}`);
         res.json({ message: "User Created" });
     } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+
+// ANALYTICS ENDPOINT: Get summary statistics
+app.get('/api/analytics/summary', async (req, res) => {
+    try {
+        // Total shipments
+        const [totalShipments] = await db.query('SELECT COUNT(*) as count FROM shipments');
+        
+        // Total value
+        const [totalValue] = await db.query('SELECT SUM(value) as total FROM shipments');
+        
+        // Pending invoices
+        const [pendingInvoices] = await db.query('SELECT COUNT(*) as count FROM shipments WHERE invoice_status = "Pending"');
+        
+        // Approved invoices
+        const [approvedInvoices] = await db.query('SELECT COUNT(*) as count FROM shipments WHERE invoice_status = "Approved"');
+        
+        res.json({
+            totalShipments: totalShipments[0].count,
+            totalValue: totalValue[0].total || 0,
+            pendingInvoices: pendingInvoices[0].count,
+            approvedInvoices: approvedInvoices[0].count
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ANALYTICS ENDPOINT: Shipment status breakdown
+app.get('/api/analytics/status-breakdown', async (req, res) => {
+    try {
+        const [results] = await db.query(`
+            SELECT status, COUNT(*) as count 
+            FROM shipments 
+            GROUP BY status
+        `);
+        res.json(results);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ANALYTICS ENDPOINT: Monthly volume
+app.get('/api/analytics/monthly-volume', async (req, res) => {
+    try {
+        const [results] = await db.query(`
+            SELECT 
+                DATE_FORMAT(created_at, '%Y-%m') as month,
+                COUNT(*) as count
+            FROM shipments
+            GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+            ORDER BY month DESC
+            LIMIT 12
+        `);
+        res.json(results.reverse());
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ANALYTICS ENDPOINT: Top tea grades
+app.get('/api/analytics/top-grades', async (req, res) => {
+    try {
+        // Extract grades from packing_list JSON
+        const [shipments] = await db.query('SELECT packing_list FROM shipments WHERE packing_list IS NOT NULL');
+        
+        const gradeCounts = {};
+        
+        shipments.forEach(ship => {
+            try {
+                const items = JSON.parse(ship.packing_list);
+                items.forEach(item => {
+                    const grade = item.grade || 'Unknown';
+                    gradeCounts[grade] = (gradeCounts[grade] || 0) + 1;
+                });
+            } catch (e) {}
+        });
+        
+        // Convert to array and sort
+        const results = Object.entries(gradeCounts)
+            .map(([grade, count]) => ({ grade, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5);
+        
+        res.json(results);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 const PORT = 3000;
