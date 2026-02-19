@@ -10,7 +10,7 @@ const TEA_CATALOG = [
     { id: 'purple', name: 'Purple Tea', fullName: 'Purple Tea (Specialty)', price: 14.20, color: 'from-purple-600 to-purple-500' },
 ];
 
-const API_URL = 'http://192.168.1.67:3000/api'; 
+const API_URL = 'http://localhost:3000/api'; 
 
 export default function LogisticsView({ shipment, user, refreshData }) {
     const [showModal, setShowModal] = useState(false);

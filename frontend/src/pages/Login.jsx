@@ -18,7 +18,7 @@ export default function Login({ setUser }) {
             if(lowerUser.includes('admin')) role = 'Admin';
 
 
-            const res = await axios.post('http://192.168.1.67:3000/api/auth/login', { 
+            const res = await axios.post('http://localhost:3000/api/auth/login', { 
                 username, 
                 password: 'password123' 
             });

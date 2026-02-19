@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 
 // Update this to your computer's IP address
-const API_URL = 'http://192.168.1.67:3000/api';
+const API_URL = 'http://localhost:3000/api';
 
 const BlockchainVerifier = ({ initialTrackingId = '' }) => {
     const [trackingId, setTrackingId] = useState(initialTrackingId);
@@ -22,7 +22,7 @@ const BlockchainVerifier = ({ initialTrackingId = '' }) => {
 
         try {
             // Fetch the PDF file
-            const response = await fetch(`http://192.168.1.67:3000/uploads/${filePath}`);
+            const response = await fetch(`http://localhost:3000/uploads/${filePath}`);
             const blob = await response.blob();
             const arrayBuffer = await blob.arrayBuffer();
 
@@ -231,7 +231,7 @@ const BlockchainVerifier = ({ initialTrackingId = '' }) => {
                     {verificationData.local.file_path && (
                         <div className="text-center">
                             <a 
-                                href={`http://192.168.1.67:3000/uploads/${verificationData.local.file_path}`}
+                                href={`http://localhost:3000/uploads/${verificationData.local.file_path}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition"

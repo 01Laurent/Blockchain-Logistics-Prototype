@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
-const API_URL = 'http://192.168.1.67:3000/api';
+const API_URL = 'http://localhost:3000/api';
 
 export default function WarehouseView({ shipment, user, refreshData }) {
     const [showPacking, setShowPacking] = useState(false);

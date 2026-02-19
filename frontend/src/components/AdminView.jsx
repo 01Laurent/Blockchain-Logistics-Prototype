@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API_URL = 'http://192.168.1.67:3000/api';
-const FILE_URL = 'http://192.168.1.67:3000/uploads';
+const API_URL = 'http://localhost:3000/api';
+const FILE_URL = 'http://localhost:3000/uploads';
 
 export default function AdminView({ shipment, user, refreshData }) {
     const [showReviewModal, setShowReviewModal] = useState(false);

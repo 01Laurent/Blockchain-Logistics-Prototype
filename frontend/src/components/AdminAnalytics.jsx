@@ -22,7 +22,7 @@ ChartJS.register(
     Legend
 );
 
-const API_URL = 'http://192.168.1.67:3000/api';
+const API_URL = 'http://localhost:3000/api';
 
 export default function AdminAnalytics() {
     const [summary, setSummary] = useState(null);

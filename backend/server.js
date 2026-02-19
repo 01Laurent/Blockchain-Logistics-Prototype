@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const multer = require('multer');
 const path = require('path');
 const PDFDocument = require('pdfkit');
+const PDFLib = require('pdf-lib');
 
 const app = express();
 app.use(cors());
@@ -485,6 +486,141 @@ app.get('/api/analytics/top-grades', async (req, res) => {
             .slice(0, 5);
         
         res.json(results);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
+// TAMPERING DEMO: Get list of locked invoices
+app.get('/api/demo/locked-invoices', async (req, res) => {
+    try {
+        const [invoices] = await db.query(`
+            SELECT s.shipment_id, s.tracking_number, s.sender_name, s.receiver_name, 
+                   d.file_path, d.file_hash 
+            FROM shipments s 
+            JOIN documents d ON s.shipment_id = d.shipment_id 
+            WHERE s.invoice_status = 'Approved' 
+            AND d.file_hash IS NOT NULL 
+            AND d.file_hash != 'PENDING_LOCK'
+            ORDER BY s.created_at DESC
+        `);
+        res.json(invoices);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// TAMPERING DEMO: Deliberately tamper with a PDF
+app.post('/api/demo/tamper-invoice/:id', async (req, res) => {
+    const shipmentId = req.params.id;
+    
+    try {
+        const [shipments] = await db.query('SELECT * FROM shipments WHERE shipment_id = ?', [shipmentId]);
+        if (shipments.length === 0) return res.status(404).json({ error: "Shipment not found" });
+        
+        const shipment = shipments[0];
+        const [docs] = await db.query('SELECT * FROM documents WHERE shipment_id = ?', [shipmentId]);
+        if (docs.length === 0) return res.status(404).json({ error: "No document found" });
+        
+        const originalFilePath = path.join(__dirname, 'uploads', docs[0].file_path);
+        if (!fs.existsSync(originalFilePath)) {
+            return res.status(404).json({ error: "PDF file not found" });
+        }
+
+        // Read original PDF
+        const originalBytes = fs.readFileSync(originalFilePath);
+        const pdfDoc = await PDFLib.PDFDocument.load(originalBytes);
+        
+        // Get the first page
+        const pages = pdfDoc.getPages();
+        const firstPage = pages[0];
+        
+        // Add a visible "FRAUDULENT MODIFICATION" stamp
+        firstPage.drawText('*** AMOUNT MODIFIED FROM $6,320 TO $12,000 ***', {
+            x: 50,
+            y: 500,
+            size: 12,
+            color: PDFLib.rgb(1, 0, 0),
+        });
+        
+        firstPage.drawText('(This is a deliberate tampering for demonstration)', {
+            x: 50,
+            y: 480,
+            size: 8,
+            color: PDFLib.rgb(0.5, 0, 0),
+        });
+
+        // Save tampered version
+        const tamperedBytes = await pdfDoc.save();
+        const tamperedFileName = `TAMPERED-${docs[0].file_path}`;
+        const tamperedFilePath = path.join(__dirname, 'uploads', tamperedFileName);
+        fs.writeFileSync(tamperedFilePath, tamperedBytes);
+        
+        // Calculate both hashes
+        const originalHash = "0x" + crypto.createHash('sha256').update(originalBytes).digest('hex');
+        const tamperedHash = "0x" + crypto.createHash('sha256').update(tamperedBytes).digest('hex');
+        
+        res.json({ 
+            message: "Invoice tampered - amount modified",
+            originalHash: docs[0].file_hash,
+            originalHashComputed: originalHash,
+            tamperedHash: tamperedHash,
+            tamperedFile: tamperedFileName,
+            originalFile: docs[0].file_path,
+            modification: "Added fraudulent text: 'AMOUNT MODIFIED FROM $6,320 TO $12,000'"
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// verify any file aganaist the blockchain hash
+app.post('/api/demo/verify-file', async (req, res) => {
+    const { filename, shipmentId } = req.body;
+    
+    try {
+        const [docs] = await db.query('SELECT * FROM documents WHERE shipment_id = ?', [shipmentId]);
+        if (docs.length === 0) return res.status(404).json({ error: "No document found" });
+        
+        const filePath = path.join(__dirname, 'uploads', filename);
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ error: "File not found" });
+        }
+        
+        const fileBytes = fs.readFileSync(filePath);
+        const computedHash = "0x" + crypto.createHash('sha256').update(fileBytes).digest('hex');
+        const blockchainHash = docs[0].file_hash;
+        
+        res.json({
+            computedHash,
+            blockchainHash,
+            matches: computedHash.toLowerCase() === blockchainHash.toLowerCase(),
+            filename
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// TAMPERING DEMO: Restore original invoice
+app.post('/api/demo/restore-invoice/:id', async (req, res) => {
+    const shipmentId = req.params.id;
+    
+    try {
+        const [docs] = await db.query('SELECT * FROM documents WHERE shipment_id = ?', [shipmentId]);
+        if (docs.length === 0) return res.status(404).json({ error: "No document found" });
+        
+        const tamperedFileName = `TAMPERED-${docs[0].file_path}`;
+        const tamperedFilePath = path.join(__dirname, 'uploads', tamperedFileName);
+        
+        // Delete tampered version if it exists
+        if (fs.existsSync(tamperedFilePath)) {
+            fs.unlinkSync(tamperedFilePath);
+        }
+        
+        res.json({ message: "Tampered invoice deleted, original restored" });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
