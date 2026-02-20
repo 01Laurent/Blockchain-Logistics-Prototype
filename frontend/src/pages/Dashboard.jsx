@@ -15,7 +15,6 @@ export default function Dashboard({ user, logout }) {
     const [shipments, setShipments] = useState([]);
     const [showAnalytics, setShowAnalytics] = useState(false);
 
-    
     // --- ADMIN SPECIFIC STATES ---
     const [logs, setLogs] = useState([]);
     const [newUser, setNewUser] = useState({ username: '', password: '', role: 'Sales' });
@@ -23,18 +22,37 @@ export default function Dashboard({ user, logout }) {
     // Load Data
     useEffect(() => {
         fetchShipments();
-        if(user.role === 'Admin') fetchLogs();
-        const interval = setInterval(() => { fetchShipments(); if(user.role === 'Admin') fetchLogs(); }, 5000); 
+        if (user.role === 'Admin') fetchLogs();
+        const interval = setInterval(() => {
+            fetchShipments();
+            if (user.role === 'Admin') fetchLogs();
+        }, 5000);
         return () => clearInterval(interval);
     }, [user.role]);
 
-    const fetchShipments = async () => { try { const res = await axios.get(`${API_URL}/shipments`); setShipments(res.data); } catch (e) {} };
-    const fetchLogs = async () => { try { const res = await axios.get(`${API_URL}/admin/logs`); setLogs(res.data); } catch (e) {} };
+    const fetchShipments = async () => {
+        try {
+            const res = await axios.get(`${API_URL}/shipments`);
+            setShipments(res.data);
+        } catch (e) {}
+    };
+
+    const fetchLogs = async () => {
+        try {
+            const res = await axios.get(`${API_URL}/admin/logs`);
+            setLogs(res.data);
+        } catch (e) {}
+    };
 
     // ADMIN USER CREATION
     const handleCreateUser = async (e) => {
         e.preventDefault();
-        try { await axios.post(`${API_URL}/admin/users`, { ...newUser, adminId: user.id }); alert("User Created!"); } catch (e) { alert("Failed"); }
+        try {
+            await axios.post(`${API_URL}/admin/users`, { ...newUser, adminId: user.id });
+            alert("User Created!");
+        } catch (e) {
+            alert("Failed");
+        }
     };
 
     return (
@@ -42,30 +60,52 @@ export default function Dashboard({ user, logout }) {
             <nav className="bg-slate-900 shadow-lg sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between h-16 items-center">
                     <div className="flex items-center space-x-3">
-                        <div className="p-2 bg-emerald-600 rounded-lg"><svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg></div>
+                        <div className="p-2 bg-emerald-600 rounded-lg">
+                            <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                            </svg>
+                        </div>
                         <span className="text-xl font-bold text-white tracking-wide">Eastern Produce Logistics</span>
                     </div>
-                    <div className="flex items-center space-x-6">
+
+                    <div className="flex items-center space-x-3 sm:space-x-4">
+                        {/* Admin-only: Tampering Demo button (now visible + organized) */}
+                        {user.role === 'Admin' && (
+                            <a
+                                href="/demo"
+                                className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold
+                                           bg-amber-400 text-slate-900 hover:bg-amber-300 transition
+                                           border border-amber-200 shadow-sm"
+                                title="Open tampering demonstration"
+                            >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                                    />
+                                </svg>
+                                Tampering Demo
+                            </a>
+                        )}
+
                         <div className="text-right hidden sm:block">
                             <p className="text-sm font-semibold text-slate-100">{user.username}</p>
                             <p className="text-xs text-emerald-400 uppercase tracking-wider font-bold">{user.role}</p>
                         </div>
-                        <button onClick={logout} className="bg-slate-800 text-slate-300 hover:text-white px-4 py-2 rounded-md text-sm font-medium transition border border-slate-700">Logout</button>
+
+                        <button
+                            onClick={logout}
+                            className="bg-slate-800 text-slate-300 hover:text-white px-4 py-2 rounded-md text-sm font-medium transition border border-slate-700"
+                        >
+                            Logout
+                        </button>
                     </div>
                 </div>
             </nav>
-            <a 
-                href="/demo"
-                className="bg-red-500/20 text-red-300 px-4 py-2 rounded-lg hover:bg-red-500/30 transition flex items-center"
-            >
-                <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                Tampering Demo
-            </a>
 
             <main className="max-w-7xl mx-auto py-8 px-4">
-                
                 {/* --- ADMIN PANEL --- */}
                 {user.role === 'Admin' && (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
@@ -75,12 +115,37 @@ export default function Dashboard({ user, logout }) {
                                 👤 User Management
                             </h3>
                             <form onSubmit={handleCreateUser} className="space-y-4">
-                                <input placeholder="New Username" value={newUser.username} onChange={e => setNewUser({...newUser, username: e.target.value})} className="w-full border-slate-300 rounded-lg p-2 border shadow-sm" required />
-                                <input placeholder="Password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} className="w-full border-slate-300 rounded-lg p-2 border shadow-sm" required />
-                                <select value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})} className="w-full border-slate-300 rounded-lg p-2 border shadow-sm">
-                                    <option>Sales</option><option>Logistics</option><option>Warehouse</option><option>Accounts</option><option>Admin</option>
+                                <input
+                                    placeholder="New Username"
+                                    value={newUser.username}
+                                    onChange={e => setNewUser({ ...newUser, username: e.target.value })}
+                                    className="w-full border-slate-300 rounded-lg p-2 border shadow-sm"
+                                    required
+                                />
+                                <input
+                                    placeholder="Password"
+                                    value={newUser.password}
+                                    onChange={e => setNewUser({ ...newUser, password: e.target.value })}
+                                    className="w-full border-slate-300 rounded-lg p-2 border shadow-sm"
+                                    required
+                                />
+                                <select
+                                    value={newUser.role}
+                                    onChange={e => setNewUser({ ...newUser, role: e.target.value })}
+                                    className="w-full border-slate-300 rounded-lg p-2 border shadow-sm"
+                                >
+                                    <option>Sales</option>
+                                    <option>Logistics</option>
+                                    <option>Warehouse</option>
+                                    <option>Accounts</option>
+                                    <option>Admin</option>
                                 </select>
-                                <button type="submit" className="w-full bg-slate-800 text-white py-2 rounded-lg font-bold hover:bg-slate-900 transition">Create User</button>
+                                <button
+                                    type="submit"
+                                    className="w-full bg-slate-800 text-white py-2 rounded-lg font-bold hover:bg-slate-900 transition"
+                                >
+                                    Create User
+                                </button>
                             </form>
                         </div>
 
@@ -90,11 +155,20 @@ export default function Dashboard({ user, logout }) {
                                 🛡️ System Logs
                             </h3>
                             <table className="w-full text-xs text-left">
-                                <thead className="bg-slate-50 sticky top-0"><tr><th className="p-2 font-bold text-slate-600">Time</th><th className="p-2 font-bold text-slate-600">User</th><th className="p-2 font-bold text-slate-600">Action</th><th className="p-2 font-bold text-slate-600">Details</th></tr></thead>
+                                <thead className="bg-slate-50 sticky top-0">
+                                    <tr>
+                                        <th className="p-2 font-bold text-slate-600">Time</th>
+                                        <th className="p-2 font-bold text-slate-600">User</th>
+                                        <th className="p-2 font-bold text-slate-600">Action</th>
+                                        <th className="p-2 font-bold text-slate-600">Details</th>
+                                    </tr>
+                                </thead>
                                 <tbody className="divide-y divide-slate-100">
                                     {logs.map(log => (
                                         <tr key={log.log_id} className="hover:bg-slate-50">
-                                            <td className="p-2 text-slate-500 whitespace-nowrap">{new Date(log.timestamp).toLocaleTimeString()}</td>
+                                            <td className="p-2 text-slate-500 whitespace-nowrap">
+                                                {new Date(log.timestamp).toLocaleTimeString()}
+                                            </td>
                                             <td className="p-2 font-bold text-slate-700">{log.username}</td>
                                             <td className="p-2 text-indigo-600 font-mono font-bold">{log.action}</td>
                                             <td className="p-2 text-slate-600 truncate max-w-xs">{log.details}</td>
@@ -112,18 +186,18 @@ export default function Dashboard({ user, logout }) {
                 {/* --- ANALYTICS TOGGLE (Admin Only) --- */}
                 {user.role === 'Admin' && (
                     <div className="mb-6">
-                        <button 
+                        <button
                             onClick={() => setShowAnalytics(!showAnalytics)}
                             className="bg-slate-900 text-white px-6 py-3 rounded-xl hover:bg-slate-800 border border-slate-700 transition-all duration-300 font-bold shadow-lg hover:shadow-xl flex items-center gap-2"
                         >
                             {showAnalytics ? (
                                 <>
-                                    <span className="text-xl">📋</span> 
+                                    <span className="text-xl">📋</span>
                                     <span>View Shipments</span>
                                 </>
                             ) : (
                                 <>
-                                    <span className="text-xl">📊</span> 
+                                    <span className="text-xl">📊</span>
                                     <span>View Analytics</span>
                                 </>
                             )}
@@ -151,19 +225,41 @@ export default function Dashboard({ user, logout }) {
                                     {shipments.map((ship) => (
                                         <tr key={ship.shipment_id} className="hover:bg-slate-50 transition">
                                             <td className="px-6 py-4 font-bold text-slate-900">{ship.tracking_number}</td>
-                                            <td className="px-6 py-4 text-sm font-medium text-slate-700">{ship.origin} ➝ {ship.destination}</td>
+                                            <td className="px-6 py-4 text-sm font-medium text-slate-700">
+                                                {ship.origin} ➝ {ship.destination}
+                                            </td>
                                             <td className="px-6 py-4">
-                                                <span className={`px-2 py-1 text-xs font-bold rounded-full border ${ship.invoice_status === 'Approved' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-yellow-100 text-yellow-800 border-yellow-200'}`}>
+                                                <span
+                                                    className={`px-2 py-1 text-xs font-bold rounded-full border ${
+                                                        ship.invoice_status === 'Approved'
+                                                            ? 'bg-green-100 text-green-800 border-green-200'
+                                                            : 'bg-yellow-100 text-yellow-800 border-yellow-200'
+                                                    }`}
+                                                >
                                                     Inv: {ship.invoice_status || 'Pending'}
                                                 </span>
-                                                <span className="ml-2 px-2 py-1 text-xs font-bold rounded-full bg-blue-100 text-blue-800 border border-blue-200">{ship.status}</span>
+                                                <span className="ml-2 px-2 py-1 text-xs font-bold rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                                                    {ship.status}
+                                                </span>
                                             </td>
                                             <td className="px-6 py-4 text-sm font-medium">
                                                 {/* DYNAMIC COMPONENT RENDERING */}
-                                                {user.role === 'Sales' && <img src={`https://api.qrserver.com/v1/create-qr-code/?size=50x50&data=${ship.tracking_number}`} alt="QR" className="h-8 w-8" />}
-                                                {user.role === 'Logistics' && <LogisticsView shipment={ship} user={user} refreshData={fetchShipments} />}
-                                                {user.role === 'Warehouse' && <WarehouseView shipment={ship} user={user} refreshData={fetchShipments} />}
-                                                {user.role === 'Admin' && <AdminView shipment={ship} user={user} refreshData={fetchShipments} />}
+                                                {user.role === 'Sales' && (
+                                                    <img
+                                                        src={`https://api.qrserver.com/v1/create-qr-code/?size=50x50&data=${ship.tracking_number}`}
+                                                        alt="QR"
+                                                        className="h-8 w-8"
+                                                    />
+                                                )}
+                                                {user.role === 'Logistics' && (
+                                                    <LogisticsView shipment={ship} user={user} refreshData={fetchShipments} />
+                                                )}
+                                                {user.role === 'Warehouse' && (
+                                                    <WarehouseView shipment={ship} user={user} refreshData={fetchShipments} />
+                                                )}
+                                                {user.role === 'Admin' && (
+                                                    <AdminView shipment={ship} user={user} refreshData={fetchShipments} />
+                                                )}
                                                 {user.role === 'Accounts' && <AccountsView shipment={ship} />}
                                             </td>
                                         </tr>

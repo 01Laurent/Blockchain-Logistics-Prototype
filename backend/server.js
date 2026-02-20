@@ -9,6 +9,7 @@ const multer = require('multer');
 const path = require('path');
 const PDFDocument = require('pdfkit');
 const PDFLib = require('pdf-lib');
+const bcrypt = require('bcrypt');
 
 const app = express();
 app.use(cors());
@@ -28,7 +29,9 @@ const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
 
 const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
 
-const contractJson = JSON.parse(fs.readFileSync('./Shipment.json'));
+const contractJson = JSON.parse(
+  fs.readFileSync(path.join(__dirname, "../blockchain/artifacts/contracts/Shipment.sol/Shipment.json"), "utf8")
+);
 const contract = new ethers.Contract(process.env.CONTRACT_ADDRESS, contractJson.abi, wallet);
 
 if (!fs.existsSync('./uploads')) fs.mkdirSync('./uploads');
@@ -243,9 +246,44 @@ app.post('/api/auth/login', async (req, res) => {
     try {
         const [users] = await db.query('SELECT * FROM users WHERE username = ?', [username]);
         if (users.length === 0) return res.status(401).json({ error: "User not found" });
+        
+        // Comparing the hashed password
+        const validPassword = await bcrypt.compare(password, users[0].password_hash);
+        if (!validPassword) return res.status(401).json({ error: "Invalid password" });
+        
         await logAction(users[0].user_id, "LOGIN", "User logged in");
-        res.json({ message: "Login Successful", user: { id: users[0].user_id, username: users[0].username, role: users[0].role } });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+        res.json({ 
+            message: "Login Successful", 
+            user: { 
+                id: users[0].user_id, 
+                username: users[0].username, 
+                role: users[0].role 
+            } 
+        });
+    } catch (err) { 
+        res.status(500).json({ error: err.message }); 
+    }
+});
+
+app.post('/api/users/change-password', async (req, res) => {
+    const { userId, oldPassword, newPassword } = req.body;
+    try {
+        const [users] = await db.query('SELECT * FROM users WHERE user_id = ?', [userId]);
+        if (users.length === 0) return res.status(404).json({ error: "User not found" });
+        
+        // Verify old password
+        const validPassword = await bcrypt.compare(oldPassword, users[0].password_hash);
+        if (!validPassword) return res.status(401).json({ error: "Invalid current password" });
+        
+        // Hash and update new password
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await db.query('UPDATE users SET password_hash = ? WHERE user_id = ?', [hashedPassword, userId]);
+        
+        await logAction(userId, "PASSWORD_CHANGE", "Password changed");
+        res.json({ message: "Password updated successfully" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.post('/api/shipments', async (req, res) => {
@@ -396,10 +434,19 @@ app.get('/api/admin/logs', async (req, res) => {
 app.post('/api/admin/users', async (req, res) => {
     const { username, password, role, adminId } = req.body;
     try {
-        await db.query('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)', [username, password, role]);
-        if (adminId) await logAction(adminId, "CREATE_USER", `Created user ${username}`);
+        // bcrypt password with (10 salt rounds)
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        await db.query(
+            'INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)', 
+            [username, hashedPassword, role]
+        );
+        
+        if(adminId) await logAction(adminId, "CREATE_USER", `Created user ${username}`);
         res.json({ message: "User Created" });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    } catch (err) { 
+        res.status(500).json({ error: err.message }); 
+    }
 });
 
 
