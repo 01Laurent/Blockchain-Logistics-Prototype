@@ -353,9 +353,16 @@ app.post('/api/admin/lock-invoice/:id', async (req, res) => {
         await generateInvoicePDF(ship, packingList, filePath, false);
 
         const fileBuffer = fs.readFileSync(filePath);
+
+        // Compute SHA-256 hash
         const hashSum = crypto.createHash('sha256');
         hashSum.update(fileBuffer);
         const hexHash = "0x" + hashSum.digest('hex');
+
+        // Safety check: must be bytes32 (0x + 64 hex chars = 66 length)
+        if (hexHash.length !== 66) {
+            throw new Error(`Hash must be bytes32. Got length=${hexHash.length}`);
+        }
 
         const tx = await contract.registerDocument(shipmentId, hexHash);
         await tx.wait();
@@ -449,6 +456,27 @@ app.post('/api/admin/users', async (req, res) => {
     }
 });
 
+app.post('/api/admin/grant-role', async (req, res) => {
+    const { role, walletAddress } = req.body;
+
+    try {
+        let tx;
+
+        if (role === "LOGISTICS") {
+            tx = await contract.grantLogisticsRole(walletAddress);
+        } else if (role === "ACCOUNTS") {
+            tx = await contract.grantAccountsRole(walletAddress);
+        } else {
+            return res.status(400).json({ error: "Invalid role" });
+        }
+
+        await tx.wait();
+        res.json({ message: "Role granted successfully" });
+
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 // ANALYTICS ENDPOINT: Get summary statistics
 app.get('/api/analytics/summary', async (req, res) => {
