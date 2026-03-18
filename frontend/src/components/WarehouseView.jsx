@@ -6,6 +6,7 @@ const API_URL = 'http://localhost:3000/api';
 export default function WarehouseView({ shipment, user, refreshData }) {
     const [showPacking, setShowPacking] = useState(false);
     const [showLabel, setShowLabel] = useState(false);
+    const [podUrl, setPodUrl] = useState('');
     const [items, setItems] = useState([]);
 
     const openPacking = () => {
@@ -15,7 +16,17 @@ export default function WarehouseView({ shipment, user, refreshData }) {
         } catch (e) { alert("Error reading packing list"); }
     };
 
-    const handleDispatch = async () => {
+    
+    const loadPodUrl = async () => {
+        try {
+            const res = await axios.get(`${API_URL}/pod/token/${shipment.shipment_id}`);
+            setPodUrl(res.data.podUrl);
+        } catch (e) {
+            alert("Failed to generate PoD QR token");
+        }
+    };
+
+const handleDispatch = async () => {
         if(!confirm("Mark shipment as dispatched?")) return;
         try { 
             await axios.post(`${API_URL}/dispatch/${shipment.shipment_id}`, { userId: user.id }); 
@@ -47,7 +58,7 @@ export default function WarehouseView({ shipment, user, refreshData }) {
                 
                 {/* Print Label Button */}
                 <button 
-                    onClick={() => setShowLabel(true)} 
+                    onClick={async () => { await loadPodUrl(); setShowLabel(true); }} 
                     className="bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-600 hover:bg-slate-600 transition flex items-center"
                 >
                     <svg className="w-3 h-3 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -173,10 +184,14 @@ export default function WarehouseView({ shipment, user, refreshData }) {
                         <div className="p-8 text-center">
                             <div className="border-4 border-slate-900 p-4 inline-block mb-6 bg-white shadow-inner">
                                 <img 
-                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=ID:${shipment.tracking_number}|ORIGIN:${shipment.origin}`} 
+                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(podUrl || 'loading')}`} 
                                     alt="Shipping Label QR Code" 
                                 />
                             </div>
+
+                            {podUrl && (
+                                <p className="text-xs text-slate-600 mt-3 break-all">PoD Link: {podUrl}</p>
+                            )}
 
                             {/* Shipment Details */}
                             <div className="bg-slate-50 border-2 border-slate-900 p-5 rounded-lg text-left space-y-2 font-mono text-sm">

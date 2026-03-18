@@ -402,6 +402,101 @@ app.post('/api/confirm/:id', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// --- Proof-of-Delivery (PoD) QR token flow ---
+// Create or reuse an active (unused) PoD token for a shipment
+async function getOrCreatePodToken(shipmentId) {
+    const [rows] = await db.query(
+        'SELECT token FROM pod_tokens WHERE shipment_id = ? AND used = 0 ORDER BY created_at DESC LIMIT 1',
+        [shipmentId]
+    );
+    if (rows.length) return rows[0].token;
+
+    const token = crypto.randomBytes(32).toString('hex'); // 64 hex chars
+    await db.query(
+        'INSERT INTO pod_tokens (token, shipment_id, used) VALUES (?, ?, 0)',
+        [token, shipmentId]
+    );
+    return token;
+}
+
+// Warehouse/Admin: generate PoD URL for printing as QR
+app.get('/api/pod/token/:shipmentId', async (req, res) => {
+    try {
+        const shipmentId = Number(req.params.shipmentId);
+        if (!Number.isFinite(shipmentId)) return res.status(400).json({ error: 'Invalid shipmentId' });
+
+        const token = await getOrCreatePodToken(shipmentId);
+
+        // NOTE: for phone testing, replace localhost with your laptop LAN IP (e.g., 192.168.x.x)
+        const frontendBase = process.env.FRONTEND_BASE_URL || 'http://localhost:5173';
+        const podUrl = `${frontendBase}/pod/${token}`;
+
+        res.json({ token, podUrl });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Public: token lookup for the mobile PoD page (minimal shipment info)
+app.get('/api/pod/info/:token', async (req, res) => {
+    try {
+        const token = req.params.token;
+
+        const [trows] = await db.query(
+            'SELECT shipment_id, used FROM pod_tokens WHERE token = ? LIMIT 1',
+            [token]
+        );
+        if (!trows.length) return res.status(404).json({ error: 'Invalid token' });
+        if (trows[0].used) return res.status(410).json({ error: 'Token already used' });
+
+        const shipmentId = trows[0].shipment_id;
+
+        const [srows] = await db.query(
+            'SELECT shipment_id, tracking_number, origin, destination, status FROM shipments WHERE shipment_id = ? LIMIT 1',
+            [shipmentId]
+        );
+        if (!srows.length) return res.status(404).json({ error: 'Shipment not found' });
+
+        res.json({
+            shipmentId: srows[0].shipment_id,
+            trackingNumber: srows[0].tracking_number,
+            origin: srows[0].origin,
+            destination: srows[0].destination,
+            status: srows[0].status
+        });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Public: confirm receipt (single-use token) -> writes PoD on-chain
+app.post('/api/pod/confirm', async (req, res) => {
+    try {
+        const { token } = req.body || {};
+        if (!token) return res.status(400).json({ error: 'token is required' });
+
+        const [trows] = await db.query(
+            'SELECT shipment_id, used FROM pod_tokens WHERE token = ? LIMIT 1',
+            [token]
+        );
+        if (!trows.length) return res.status(404).json({ error: 'Invalid token' });
+        if (trows[0].used) return res.status(410).json({ error: 'Token already used' });
+
+        const shipmentId = trows[0].shipment_id;
+
+        // Atomically consume token (prevents replay)
+        const [updateRes] = await db.query(
+            'UPDATE pod_tokens SET used = 1, used_at = NOW() WHERE token = ? AND used = 0',
+            [token]
+        );
+        if (updateRes.affectedRows === 0) {
+            return res.status(410).json({ error: 'Token already used' });
+        }
+
+        const tx = await contract.confirmDelivery(shipmentId);
+        await tx.wait();
+
+        await db.query('UPDATE shipments SET status = "Delivered" WHERE shipment_id = ?', [shipmentId]);
+
+        res.json({ message: 'Delivery confirmed', shipmentId, txHash: tx.hash });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
 // AFTER (handles not-yet-locked shipments):
 app.get('/api/shipments/:id/status', async (req, res) => {
