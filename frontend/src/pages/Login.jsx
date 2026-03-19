@@ -1,35 +1,68 @@
 import { useState } from 'react';
 import axios from 'axios';
+import { toast } from "../components/Toast";
 
 export default function Login({ setUser }) {
     const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
 
     const handleLogin = async (e) => {
         e.preventDefault();
+        
+        // ✅ Validation with toast warnings
+        if (!username.trim()) {
+            toast.warning('Please enter your username');
+            return;
+        }
+        
+        if (!password.trim()) {
+            toast.warning('Please enter your password');
+            return;
+        }
+        
         setLoading(true);
+        
         try {
-            // Determine Role based on Username (Simple Mock for Prototype)
-            let role = 'Sales';
-            const lowerUser = username.toLowerCase();
-            if(lowerUser.includes('logistics')) role = 'Logistics';
-            if(lowerUser.includes('warehouse')) role = 'Warehouse';
-            if(lowerUser.includes('accounts')) role = 'Accounts';
-            if(lowerUser.includes('admin')) role = 'Admin';
-
-
+            // Send credentials to backend
             const res = await axios.post('http://localhost:3000/api/auth/login', { 
                 username, 
-                password: 'password123' 
+                password
             });
             
-            // Save user with detected role
-            setUser({ ...res.data.user, role: role });
+            // ✅ SUCCESS: Show success toast
+            toast.success(`Welcome back, ${res.data.user.username}! 🎉`);
+            
+            // Small delay so user sees the success message
+            setTimeout(() => {
+                setUser(res.data.user);
+            }, 500);
+            
         } catch (err) {
-            alert('Login Failed: ' + (err.response?.data?.error || err.message));
+            // ❌ ERROR: Show error toast with helpful message
+            const errorMessage = err.response?.data?.error || err.message;
+            
+            if (errorMessage.toLowerCase().includes('invalid')) {
+                toast.error('Invalid username or password. Please try again.');
+            } else if (errorMessage.toLowerCase().includes('deactivated')) {
+                toast.error('Account deactivated. Contact administrator.');
+            } else if (errorMessage.toLowerCase().includes('not found')) {
+                toast.error('User not found. Please check your username.');
+            } else {
+                toast.error('Login failed. Please try again.');
+            }
+            
+            console.error('Login error:', err);
         } finally {
             setLoading(false);
         }
+    };
+
+    // ✅ Quick login helper
+    const quickLogin = (demoUsername, demoPassword) => {
+        setUsername(demoUsername);
+        setPassword(demoPassword);
+        toast.info(`Quick login: ${demoUsername}`);
     };
 
     return (
@@ -63,7 +96,7 @@ export default function Login({ setUser }) {
                                     type="text"
                                     required
                                     className="appearance-none block w-full px-3 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent sm:text-sm transition"
-                                    placeholder="e.g. sales_user"
+                                    placeholder="e.g. admin_user"
                                     value={username}
                                     onChange={e => setUsername(e.target.value)}
                                 />
@@ -79,9 +112,11 @@ export default function Login({ setUser }) {
                                     id="password"
                                     name="password"
                                     type="password"
-                                    defaultValue="password123"
+                                    required
                                     className="appearance-none block w-full px-3 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent sm:text-sm transition"
                                     placeholder="••••••••"
+                                    value={password}
+                                    onChange={e => setPassword(e.target.value)}
                                 />
                             </div>
                         </div>
@@ -112,22 +147,65 @@ export default function Login({ setUser }) {
                             </div>
                             <div className="relative flex justify-center text-sm">
                                 <span className="px-3 bg-white text-gray-400 font-medium">
-                                    Select a Role to Demo
+                                    Quick Demo Login
                                 </span>
                             </div>
                         </div>
 
+                        {/* ✅ FIXED: All 5 buttons with type="button" and correct credentials */}
                         <div className="mt-6 grid grid-cols-2 gap-3">
-                            {['sales_user', 'logistics_user', 'warehouse_user', 'accounts_user'].map((usr) => (
-                                <button
-                                    key={usr}
-                                    onClick={() => setUsername(usr)}
-                                    className="w-full inline-flex justify-center items-center py-2 px-4 border border-gray-200 rounded-lg shadow-sm bg-white text-xs font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300 transition duration-200"
-                                >
-                                    {usr.replace('_user', '')}
-                                </button>
-                            ))}
+                            {/* Button 1: Admin */}
+                            <button
+                                type="button"
+                                onClick={() => quickLogin('admin_user', 'admin123')}
+                                className="w-full inline-flex justify-center items-center py-2.5 px-4 border border-gray-200 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300 transition duration-200"
+                            >
+                                👤 Admin
+                            </button>
+                            
+                            {/* Button 2: Sales */}
+                            <button
+                                type="button"
+                                onClick={() => quickLogin('sales_user', 'sales123')}
+                                className="w-full inline-flex justify-center items-center py-2.5 px-4 border border-gray-200 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300 transition duration-200"
+                            >
+                                💼 Sales
+                            </button>
+                            
+                            {/* Button 3: Logistics */}
+                            <button
+                                type="button"
+                                onClick={() => quickLogin('logistics_user', 'logistics123')}
+                                className="w-full inline-flex justify-center items-center py-2.5 px-4 border border-gray-200 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300 transition duration-200"
+                            >
+                                📦 Logistics
+                            </button>
+                            
+                            {/* Button 4: Warehouse */}
+                            <button
+                                type="button"
+                                onClick={() => quickLogin('warehouse_user', 'warehouse123')}
+                                className="w-full inline-flex justify-center items-center py-2.5 px-4 border border-gray-200 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300 transition duration-200"
+                            >
+                                🚚 Warehouse
+                            </button>
+                            
+                            {/* ✅ FIXED: Button 5: Accounts (was duplicating warehouse_user) */}
+                            <button
+                                type="button"
+                                onClick={() => quickLogin('accounts_user', 'accounts123')}
+                                className="col-span-2 w-full inline-flex justify-center items-center py-2.5 px-4 border border-gray-200 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300 transition duration-200"
+                            >
+                                💰 Accounts
+                            </button>
                         </div>
+
+                        {/* Demo credentials info */}
+                        {/* <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <p className="text-xs text-blue-800 text-center">
+                                <span className="font-semibold">Demo Credentials:</span> Each role has format: <code className="bg-blue-100 px-1 rounded">role_user</code> / <code className="bg-blue-100 px-1 rounded">role123</code>
+                            </p>
+                        </div> */}
                     </div>
                 </div>
                 

@@ -54,8 +54,8 @@ export default function AccountsView({ shipment }) {
 
     if (shipment.invoice_status !== 'Approved') {
         return (
-            <span className="text-xs text-slate-500 italic bg-slate-700/30 px-3 py-1.5 rounded-lg border border-slate-600 flex items-center">
-                <svg className="w-3 h-3 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <span className="text-sm text-slate-400 bg-slate-700 px-4 py-2 rounded-lg border border-slate-600 flex items-center font-medium">
+                <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 Awaiting Approval
@@ -65,32 +65,32 @@ export default function AccountsView({ shipment }) {
 
     return (
         <>
-            <div className="flex space-x-2">
-                {/* View PDF Button */}
+            <div className="flex space-x-3">
+                {/* View PDF Button - High Visibility Blue */}
                 <button 
                     onClick={viewInvoice} 
-                    className="bg-indigo-500/20 text-indigo-300 px-3 py-1.5 rounded-lg text-xs font-bold border border-indigo-500/30 hover:bg-indigo-500/30 transition flex items-center"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-lg border-2 border-blue-500 transition-all hover:scale-105 flex items-center"
                 >
-                    <svg className="w-3 h-3 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    PDF
+                    View PDF
                 </button>
 
-                {/* Verify Button */}
+                {/* Verify Button - High Visibility Green */}
                 <button 
                     onClick={verifyBlockchain} 
-                    className="bg-emerald-500/20 text-emerald-300 px-3 py-1.5 rounded-lg text-xs font-bold border border-emerald-500/30 hover:bg-emerald-500/30 transition flex items-center"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-lg border-2 border-emerald-500 transition-all hover:scale-105 flex items-center"
                 >
-                    <svg className="w-3 h-3 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                     </svg>
                     Verify
                 </button>
 
-                {/* Value Badge */}
-                <div className="bg-purple-500/20 text-purple-300 px-3 py-1.5 rounded-lg text-xs font-bold border border-purple-500/30 flex items-center">
-                    <svg className="w-3 h-3 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                {/* Value Badge - High Visibility Purple/Pink */}
+                <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-5 py-2 rounded-lg text-sm font-bold shadow-lg border-2 border-purple-500 flex items-center">
+                    <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     ${estimatedValue.toLocaleString()}
